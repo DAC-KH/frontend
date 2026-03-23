@@ -617,16 +617,20 @@ export default function App() {
               <div className="step-title">Tell us about yourself</div>
               <div className="step-sub">Basic demographics for your insurance quote</div>
               <div className="card">
-                <div className="fg">
-                  <label className="fl">Age: <strong style={{ color: "var(--txt)", fontSize: 16 }}>{inp.age}</strong> years old</label>
-                  <input type="range" min="0" max="100" step="1" value={inp.age}
-                    onChange={e => u("age", parseInt(e.target.value))}
-                    style={{ width: "100%", accentColor: "var(--navy)", cursor: "pointer", height: 6 }} />
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--txt3)", marginTop: 2 }}>
-                    <span>0</span><span>18</span><span>35</span><span>50</span><span>65</span><span>100</span>
+                <div className="row2">
+                  <div className="fg">
+                    <label className="fl">Age</label>
+                    <input className="fi" type="number" min="0" max="100"
+                      value={inp.age === 0 ? "" : inp.age}
+                      onChange={e => {
+                        const raw = e.target.value;
+                        if (raw === "") { u("age", 0); return; }
+                        const n = parseInt(raw);
+                        if (!isNaN(n)) u("age", Math.min(100, Math.max(0, n)));
+                      }}
+                      onBlur={() => { if (!inp.age && inp.age !== 0) u("age", 18); }}
+                    />
                   </div>
-                </div>
-                <div className="row3">
                   <div className="fg">
                     <label className="fl">Gender</label>
                     <div className="sw">
@@ -634,6 +638,8 @@ export default function App() {
                       <Chev />
                     </div>
                   </div>
+                </div>
+                <div className="row2">
                   <div className="fg">
                     <label className="fl">Region</label>
                     <div className="sw">
