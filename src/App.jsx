@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 
-const API = "https://dac-healthprice-api.onrender.com"; // UPDATE to your Render URL
+const API = "https://dac-healthprice-api.onrender.com/"; // UPDATE to your Render URL
 const LOGO_URL = "/DAC.jpg"; // Your logo in /public
 
 async function apiCall(path, body) {
@@ -16,14 +16,10 @@ async function apiCall(path, body) {
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
-const COUNTRIES = {
-  cambodia: { name: "Cambodia", flag: "\u{1F1F0}\u{1F1ED}", regions: ["Phnom Penh","Siem Reap","Battambang","Sihanoukville","Kampong Cham","Rural Areas"] },
-  vietnam:  { name: "Vietnam",  flag: "\u{1F1FB}\u{1F1F3}", regions: ["Ho Chi Minh City","Hanoi","Da Nang","Can Tho","Hai Phong","Rural Areas"] },
-};
+const REGIONS = ["Phnom Penh","Siem Reap","Battambang","Sihanoukville","Kampong Cham","Rural Areas"];
 const GENDERS = ["Male","Female","Other"];
 const SMOKING = ["Never","Former","Current"];
-const EXERCISE = ["Sedentary","Light","Moderate","Active"];
-const OCCUPATIONS = ["Office/Desk","Retail/Service","Healthcare","Manual Labor","Industrial/High-Risk"];
+const OCCUPATIONS = ["Office/Desk","Retail/Service","Healthcare","Manual Labor","Industrial/High-Risk","Retired"];
 const PREEXIST = ["None","Hypertension","Diabetes","Heart Disease","Asthma/COPD","Cancer (remission)","Kidney Disease","Liver Disease","Obesity","Mental Health"];
 const TIERS = {
   Bronze:   { limit: "$15,000",  room: "General Ward",   surg: "$5,000",  icu: "3 days",  ded: "$500",  dedN: 500 },
@@ -41,8 +37,10 @@ const LOAD = { ipd: 0.30, opd: 0.25, dental: 0.20, maternity: 0.25 };
 function localPrice(inp) {
   const af = 1 + Math.max(0, (inp.age - 35)) * 0.008;
   const sf = { Never: 1, Former: 1.15, Current: 1.40 }[inp.smoking_status] || 1;
-  const ef = { Sedentary: 1.20, Light: 1.05, Moderate: 0.90, Active: 0.80 }[inp.exercise_frequency] || 1;
-  const of_ = { "Office/Desk": 0.85, "Retail/Service": 1, "Healthcare": 1.05, "Manual Labor": 1.15, "Industrial/High-Risk": 1.30 }[inp.occupation_type] || 1;
+  // Exercise: convert days*mins to weekly minutes, then map to factor
+  const weeklyMins = (inp.exercise_days || 0) * (inp.exercise_mins || 0);
+  const ef = weeklyMins <= 0 ? 1.20 : weeklyMins < 60 ? 1.10 : weeklyMins < 150 ? 0.95 : weeklyMins < 300 ? 0.85 : 0.75;
+  const of_ = { "Office/Desk": 0.85, "Retail/Service": 1, "Healthcare": 1.05, "Manual Labor": 1.15, "Industrial/High-Risk": 1.30, "Retired": 1.10 }[inp.occupation_type] || 1;
   const pf = 1 + (inp.preexist_conditions.filter(p => p !== "None").length) * 0.20;
 
   const calc = (cov) => {
@@ -114,6 +112,7 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fb);-webkit-font-sm
 .ctry-sel{display:flex;gap:2px;padding:2px;background:rgba(255,255,255,.08);border-radius:6px}
 .ctry-btn{padding:4px 10px;border-radius:4px;border:none;cursor:pointer;font-size:11px;font-family:var(--fb);transition:all .15s;color:rgba(255,255,255,.5);background:transparent}
 .ctry-btn.sel{background:rgba(255,255,255,.12);color:var(--gold);font-weight:600}
+input[type="range"]{height:6px;border-radius:3px;outline:none;cursor:pointer}
 .status{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.4)}
 .dot{width:6px;height:6px;border-radius:50%}.dot.ok{background:var(--ok)}.dot.off{background:var(--danger)}
 .wizard{max-width:640px;width:100%;margin:0 auto;padding:28px 20px 40px;flex:1}
@@ -203,31 +202,45 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fb);-webkit-font-sm
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [step, setStep] = useState(0);
-  const [country, setCountry] = useState("cambodia");
   const [apiOk, setApiOk] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [isLocal, setIsLocal] = useState(false);
   const [aiTip, setAiTip] = useState("");
 
-  const regions = COUNTRIES[country].regions;
   const [inp, setInp] = useState({
     age: 35, gender: "Male", country: "cambodia", region: "Phnom Penh",
-    smoking_status: "Never", exercise_frequency: "Light", occupation_type: "Office/Desk",
+    smoking_status: "Never",
+    exercise_days: 3, exercise_mins: 30,
+    exercise_frequency: "Moderate", // derived from days*mins for backend
+    occupation_type: "Office/Desk",
     preexist_conditions: ["None"], ipd_tier: "Silver", family_size: 1,
     include_opd: false, include_dental: false, include_maternity: false,
   });
+
+  // Derive exercise_frequency label from days*mins for backend compatibility
+  const deriveExercise = (days, mins) => {
+    const w = days * mins;
+    if (w <= 0) return "Sedentary";
+    if (w < 60) return "Light";
+    if (w < 150) return "Moderate";
+    return "Active";
+  };
 
   useEffect(() => {
     apiCall("/health").then(() => setApiOk(true)).catch(() => setApiOk(false));
   }, []);
 
-  useEffect(() => {
-    setInp(p => ({ ...p, country, region: COUNTRIES[country].regions[0] }));
-    setResult(null);
-  }, [country]);
-
-  const u = (k, v) => setInp(p => ({ ...p, [k]: v }));
+  const u = (k, v) => setInp(p => {
+    const next = { ...p, [k]: v };
+    // Auto-derive exercise_frequency when exercise inputs change
+    if (k === "exercise_days" || k === "exercise_mins") {
+      const days = k === "exercise_days" ? v : next.exercise_days;
+      const mins = k === "exercise_mins" ? v : next.exercise_mins;
+      next.exercise_frequency = deriveExercise(days, mins);
+    }
+    return next;
+  });
 
   const togglePE = (cond) => setInp(p => {
     const cur = p.preexist_conditions;
@@ -253,7 +266,9 @@ export default function App() {
   const estRider = (cov) => {
     const af = 1 + Math.max(0, (inp.age - 35)) * 0.008;
     const sf = { Never: 1, Former: 1.15, Current: 1.40 }[inp.smoking_status] || 1;
-    const freq = FB_FREQ[cov] * af * sf * (1 + peCount * 0.20);
+    const wm = (inp.exercise_days || 0) * (inp.exercise_mins || 0);
+    const ef = wm <= 0 ? 1.20 : wm < 60 ? 1.10 : wm < 150 ? 0.95 : wm < 300 ? 0.85 : 0.75;
+    const freq = FB_FREQ[cov] * af * sf * ef * (1 + peCount * 0.20);
     const sev = FB_SEV[cov] * (1 + Math.max(0, (inp.age - 30)) * 0.006);
     return Math.round(freq * sev * (1 + LOAD[cov]));
   };
@@ -288,17 +303,11 @@ export default function App() {
         {/* NAV */}
         <nav className="nav">
           <div className="nav-brand" onClick={() => { setStep(0); setResult(null); }}>
-            <Logo size={70} />
+            <Logo size={48} />
             <span className="nav-title">DAC HealthPrice</span>
           </div>
           <div className="nav-right">
-            <div className="ctry-sel">
-              {Object.entries(COUNTRIES).map(([k, v]) => (
-                <button key={k} className={`ctry-btn ${country === k ? "sel" : ""}`} onClick={() => setCountry(k)}>
-                  {v.flag} {v.name}
-                </button>
-              ))}
-            </div>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,.5)", padding: "4px 10px", borderRadius: 4, background: "rgba(255,255,255,.08)" }}>Cambodia</span>
             <div className="status">
               <div className={`dot ${apiOk ? "ok" : "off"}`} />
               {apiOk ? "Connected" : "Offline"}
@@ -328,11 +337,16 @@ export default function App() {
               <div className="step-title">Tell us about yourself</div>
               <div className="step-sub">Basic demographics for your insurance quote</div>
               <div className="card">
-                <div className="row3">
-                  <div className="fg">
-                    <label className="fl">Age</label>
-                    <input className="fi" type="number" min="0" max="100" value={inp.age} onChange={e => u("age", Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))} />
+                <div className="fg">
+                  <label className="fl">Age: <strong style={{ color: "var(--txt)", fontSize: 16 }}>{inp.age}</strong> years old</label>
+                  <input type="range" min="0" max="100" step="1" value={inp.age}
+                    onChange={e => u("age", parseInt(e.target.value))}
+                    style={{ width: "100%", accentColor: "var(--navy)", cursor: "pointer", height: 6 }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--txt3)", marginTop: 2 }}>
+                    <span>0</span><span>18</span><span>35</span><span>50</span><span>65</span><span>100</span>
                   </div>
+                </div>
+                <div className="row3">
                   <div className="fg">
                     <label className="fl">Gender</label>
                     <div className="sw">
@@ -343,14 +357,14 @@ export default function App() {
                   <div className="fg">
                     <label className="fl">Region</label>
                     <div className="sw">
-                      <select className="fs" value={inp.region} onChange={e => u("region", e.target.value)}>{regions.map(r => <option key={r}>{r}</option>)}</select>
+                      <select className="fs" value={inp.region} onChange={e => u("region", e.target.value)}>{REGIONS.map(r => <option key={r}>{r}</option>)}</select>
                       <Chev />
                     </div>
                   </div>
-                </div>
-                <div className="fg">
-                  <label className="fl">Family size</label>
-                  <input className="fi" type="number" min="1" max="10" value={inp.family_size} onChange={e => u("family_size", Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))} style={{ maxWidth: 120 }} />
+                  <div className="fg">
+                    <label className="fl">Family size</label>
+                    <input className="fi" type="number" min="1" max="10" value={inp.family_size} onChange={e => u("family_size", Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))} />
+                  </div>
                 </div>
               </div>
               <div className="btn-row">
@@ -365,18 +379,11 @@ export default function App() {
               <div className="step-title">Your health profile</div>
               <div className="step-sub">Lifestyle factors that affect your premium</div>
               <div className="card">
-                <div className="row3">
+                <div className="row2">
                   <div className="fg">
-                    <label className="fl">Smoking</label>
+                    <label className="fl">Smoking status</label>
                     <div className="sw">
                       <select className="fs" value={inp.smoking_status} onChange={e => u("smoking_status", e.target.value)}>{SMOKING.map(s => <option key={s}>{s}</option>)}</select>
-                      <Chev />
-                    </div>
-                  </div>
-                  <div className="fg">
-                    <label className="fl">Exercise</label>
-                    <div className="sw">
-                      <select className="fs" value={inp.exercise_frequency} onChange={e => u("exercise_frequency", e.target.value)}>{EXERCISE.map(s => <option key={s}>{s}</option>)}</select>
                       <Chev />
                     </div>
                   </div>
@@ -388,6 +395,45 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* Quantified exercise */}
+                <div style={{ background: "var(--surf2)", borderRadius: "var(--r)", padding: 16, marginBottom: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <label className="fl" style={{ margin: 0 }}>Physical exercise</label>
+                    <span style={{
+                      padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                      background: inp.exercise_frequency === "Sedentary" ? "#fef2f2" : inp.exercise_frequency === "Light" ? "#fffbeb" : inp.exercise_frequency === "Moderate" ? "#eff6ff" : "#e1f5ee",
+                      color: inp.exercise_frequency === "Sedentary" ? "#dc2626" : inp.exercise_frequency === "Light" ? "#b07a0a" : inp.exercise_frequency === "Moderate" ? "#1e40af" : "#059669",
+                    }}>{inp.exercise_frequency} — {(inp.exercise_days || 0) * (inp.exercise_mins || 0)} min/week</span>
+                  </div>
+                  <div className="row2">
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--txt2)", marginBottom: 4 }}>
+                        <span>Days per week</span>
+                        <strong style={{ color: "var(--txt)" }}>{inp.exercise_days}</strong>
+                      </div>
+                      <input type="range" min="0" max="7" step="1" value={inp.exercise_days}
+                        onChange={e => u("exercise_days", parseInt(e.target.value))}
+                        style={{ width: "100%", accentColor: "var(--navy)", cursor: "pointer" }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--txt3)", marginTop: 2 }}>
+                        <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--txt2)", marginBottom: 4 }}>
+                        <span>Minutes per session</span>
+                        <strong style={{ color: "var(--txt)" }}>{inp.exercise_mins}</strong>
+                      </div>
+                      <input type="range" min="0" max="120" step="5" value={inp.exercise_mins}
+                        onChange={e => u("exercise_mins", parseInt(e.target.value))}
+                        style={{ width: "100%", accentColor: "var(--navy)", cursor: "pointer" }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--txt3)", marginTop: 2 }}>
+                        <span>0</span><span>30</span><span>60</span><span>90</span><span>120</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="fg">
                   <label className="fl">Pre-existing conditions {peCount > 0 && <span style={{ color: "var(--danger)", fontWeight: 400 }}>({peCount})</span>}</label>
                   <div className="chips">
@@ -465,7 +511,7 @@ export default function App() {
           {step === 3 && result && (
             <div className="step-content">
               <div className="res-hero">
-                <div className="res-label">Your annual premium — {COUNTRIES[country].name}</div>
+                <div className="res-label">Your annual premium — Cambodia</div>
                 <div className="res-amount">${result.total_annual_premium?.toLocaleString()}</div>
                 <div className="res-monthly">${result.total_monthly_premium}/month · Family of {result.family_size}</div>
                 <div className="res-tier">
@@ -523,10 +569,10 @@ export default function App() {
         </div>
 
         {/* AI CHAT */}
-        <AIChat inp={inp} result={result} country={country} />
+        <AIChat inp={inp} result={result} />
 
         <footer className="footer">
-          DAC HealthPrice · {COUNTRIES[country].name}
+          DAC HealthPrice · Cambodia
           <div className="footer-tags">
             <span className="footer-tag">Freq-Sev</span>
             <span className="footer-tag">FastAPI</span>
@@ -542,7 +588,7 @@ export default function App() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // AI CHAT COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
-function AIChat({ inp, result, country }) {
+function AIChat({ inp, result }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([
     { role: "bot", text: "Hi! I'm your AI advisor. I can recommend plans, explain pricing, or suggest optimizations." }
@@ -556,7 +602,8 @@ function AIChat({ inp, result, country }) {
   }, 50);
 
   const ctx = () => {
-    const profile = `Profile: age=${inp.age}, gender=${inp.gender}, country=${country}, region=${inp.region}, smoking=${inp.smoking_status}, exercise=${inp.exercise_frequency}, occupation=${inp.occupation_type}, conditions=${inp.preexist_conditions.join(",")}, family=${inp.family_size}.`;
+    const wm = (inp.exercise_days || 0) * (inp.exercise_mins || 0);
+    const profile = `Profile: age=${inp.age}, gender=${inp.gender}, Cambodia, region=${inp.region}, smoking=${inp.smoking_status}, exercise=${inp.exercise_days}days x ${inp.exercise_mins}min (${wm}min/week, ${inp.exercise_frequency}), occupation=${inp.occupation_type}, conditions=${inp.preexist_conditions.join(",")}, family=${inp.family_size}.`;
     const plan = `Plan: tier=${inp.ipd_tier}, opd=${inp.include_opd}, dental=${inp.include_dental}, maternity=${inp.include_maternity}.`;
     const quote = result
       ? `Quote: $${result.total_annual_premium}/yr, IPD freq=${result.ipd_core?.frequency}, sev=$${result.ipd_core?.severity}, prem=$${result.ipd_core?.annual_premium}. Riders: ${Object.entries(result.riders || {}).map(([k, v]) => `${k}=$${v.annual_premium}`).join(",") || "none"}.`
