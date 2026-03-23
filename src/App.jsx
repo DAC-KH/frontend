@@ -583,6 +583,12 @@ export default function App() {
                 <div className="card-label">Upload history</div>
                 <AdminHistory adminKey={adminKey} />
               </div>
+
+              {/* User behavior data */}
+              <div className="card">
+                <div className="card-label">User quote data</div>
+                <AdminUserData adminKey={adminKey} />
+              </div>
             </>
           )}
         </div>
@@ -1177,6 +1183,154 @@ function AdminHistory({ adminKey }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function AdminUserData({ adminKey }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showTable, setShowTable] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API}/api/v2/admin/user-behavior`, { headers: { "X-API-Key": adminKey } });
+      setData(await r.json());
+    } catch { setData({ status: "error" }); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (!data) return <div style={{ fontSize: 12, color: "var(--txt3)", textAlign: "center", padding: 16 }}>{loading ? "Loading..." : "No data"}</div>;
+  if (data.status === "no_db") return <div style={{ fontSize: 12, color: "var(--txt3)", textAlign: "center", padding: 16 }}>Database not connected</div>;
+  if (data.status === "error") return <div style={{ fontSize: 12, color: "var(--danger)", textAlign: "center", padding: 16 }}>Failed to load user data</div>;
+
+  const { summary = {}, records = [] } = data;
+
+  if (records.length === 0) return (
+    <div style={{ textAlign: "center", padding: 20 }}>
+      <div style={{ fontSize: 12, color: "var(--txt3)" }}>No user quotes recorded yet</div>
+      <div style={{ fontSize: 11, color: "var(--txt3)", marginTop: 4 }}>Quotes will appear here as users calculate premiums</div>
+    </div>
+  );
+
+  const tierColors = { Bronze: "#92400e", Silver: "#475569", Gold: "#b07a0a", Platinum: "#1e40af" };
+  const tierBg = { Bronze: "#fffbeb", Silver: "#f1f3f5", Gold: "#fef9ec", Platinum: "#eff6ff" };
+
+  return (
+    <div>
+      {/* Summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+        <div style={{ background: "var(--surf2)", borderRadius: 8, padding: 10, textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "var(--txt3)" }}>Total quotes</div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>{summary.total_quotes || 0}</div>
+        </div>
+        <div style={{ background: "var(--surf2)", borderRadius: 8, padding: 10, textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "var(--txt3)" }}>Avg age</div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>{summary.avg_age || "—"}</div>
+        </div>
+        <div style={{ background: "var(--surf2)", borderRadius: 8, padding: 10, textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "var(--txt3)" }}>OPD rider %</div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>{summary.rider_rates?.opd || 0}%</div>
+        </div>
+        <div style={{ background: "var(--surf2)", borderRadius: 8, padding: 10, textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "var(--txt3)" }}>Dental rider %</div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>{summary.rider_rates?.dental || 0}%</div>
+        </div>
+      </div>
+
+      {/* Tier distribution */}
+      {summary.tier_distribution && Object.keys(summary.tier_distribution).length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "var(--txt3)", marginBottom: 6, fontWeight: 600 }}>Tier distribution</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {Object.entries(summary.tier_distribution).map(([tier, count]) => {
+              const pct = Math.round(count / (summary.total_quotes || 1) * 100);
+              return (
+                <div key={tier} style={{ flex: 1, background: tierBg[tier] || "var(--surf2)", borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: tierColors[tier] || "var(--txt)" }}>{tier}</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: tierColors[tier] || "var(--txt)" }}>{pct}%</div>
+                  <div style={{ fontSize: 9, color: "var(--txt3)" }}>{count} quotes</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Smoking distribution */}
+      {summary.smoking_distribution && Object.keys(summary.smoking_distribution).length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "var(--txt3)", marginBottom: 6, fontWeight: 600 }}>Smoking status</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {Object.entries(summary.smoking_distribution).map(([status, count]) => {
+              const pct = Math.round(count / (summary.total_quotes || 1) * 100);
+              const colors = { Never: "#059669", Former: "#b07a0a", Current: "#dc2626" };
+              const bgs = { Never: "#e1f5ee", Former: "#fffbeb", Current: "#fef2f2" };
+              return (
+                <div key={status} style={{ flex: 1, background: bgs[status] || "var(--surf2)", borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: colors[status] || "var(--txt)" }}>{status}</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: colors[status] || "var(--txt)" }}>{pct}%</div>
+                  <div style={{ fontSize: 9, color: "var(--txt3)" }}>{count} users</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Toggle table */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <button onClick={() => setShowTable(!showTable)} style={{
+          padding: "5px 12px", borderRadius: 6, border: "1px solid var(--surf3)", background: showTable ? "var(--navy)" : "white",
+          fontSize: 11, cursor: "pointer", fontFamily: "var(--fb)", color: showTable ? "white" : "var(--txt2)",
+        }}>
+          {showTable ? "Hide" : "Show"} recent quotes ({records.length})
+        </button>
+        <button onClick={load} style={{ padding: "4px 10px", borderRadius: 5, border: "1px solid var(--surf3)", background: "white", fontSize: 10, cursor: "pointer", fontFamily: "var(--fb)", color: "var(--txt3)" }}>
+          Refresh
+        </button>
+      </div>
+
+      {/* Records table */}
+      {showTable && (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: "1.5px solid var(--surf3)" }}>
+                {["Time", "Age", "Gender", "Region", "Smoking", "Occupation", "Conditions", "Tier", "Riders", "Family"].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "6px 6px", fontSize: 10, color: "var(--txt3)", fontWeight: 600 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {records.slice(0, 30).map((r, i) => {
+                const riders = [r.include_opd && "OPD", r.include_dental && "Den", r.include_maternity && "Mat"].filter(Boolean).join(", ") || "—";
+                return (
+                  <tr key={i} style={{ borderBottom: "1px solid var(--surf2)" }}>
+                    <td style={{ padding: "6px", color: "var(--txt3)", fontSize: 10 }}>{r.created_at ? new Date(r.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                    <td style={{ padding: "6px" }}>{r.age}</td>
+                    <td style={{ padding: "6px" }}>{r.gender}</td>
+                    <td style={{ padding: "6px", fontSize: 10 }}>{r.region}</td>
+                    <td style={{ padding: "6px" }}>
+                      <span style={{ padding: "1px 6px", borderRadius: 3, fontSize: 10, background: r.smoking === "Current" ? "#fef2f2" : r.smoking === "Former" ? "#fffbeb" : "#e1f5ee", color: r.smoking === "Current" ? "#dc2626" : r.smoking === "Former" ? "#b07a0a" : "#059669" }}>{r.smoking}</span>
+                    </td>
+                    <td style={{ padding: "6px", fontSize: 10 }}>{r.occupation}</td>
+                    <td style={{ padding: "6px" }}>{r.preexist_count || 0}</td>
+                    <td style={{ padding: "6px" }}>
+                      <span style={{ padding: "1px 6px", borderRadius: 3, fontSize: 10, background: tierBg[r.ipd_tier] || "var(--surf2)", color: tierColors[r.ipd_tier] || "var(--txt)", fontWeight: 600 }}>{r.ipd_tier}</span>
+                    </td>
+                    <td style={{ padding: "6px", fontSize: 10 }}>{riders}</td>
+                    <td style={{ padding: "6px" }}>{r.family_size}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
