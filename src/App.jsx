@@ -11,7 +11,7 @@ const WHITE = "#ffffff";
 const GRAY = "#94a3b8";
 const LTGRAY = "#f1f3f5";
 const TXT = "#111827";
-const TXT2 = "#64748b";
+const TXT2 = "#4b5563";
 const OK = "#10b981";
 const TEAL = "#0d9488";
 
@@ -92,32 +92,66 @@ export default function App() {
         a { text-decoration:none; color:inherit; }
         .nav-link { color:${GRAY}; font-size:15px; font-weight:500; cursor:pointer; transition:color 0.2s; padding:8px 0; }
         .nav-link:hover, .nav-link.active { color:${GOLD}; }
+        .hamburger { display:none; flex-direction:column; justify-content:center; gap:5px; width:40px; height:40px; background:transparent; border:none; cursor:pointer; padding:4px; border-radius:8px; transition:background 0.2s; }
+        .hamburger:hover { background:rgba(255,255,255,0.08); }
+        .hamburger span { display:block; width:22px; height:2px; background:#ffffff; border-radius:2px; transition:all 0.25s ease; }
+        .hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+        .hamburger.open span:nth-child(2) { opacity:0; transform:scaleX(0); }
+        .hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
+        .desktop-nav { display:flex; align-items:center; gap:32px; }
+        .mobile-menu { position:fixed; top:72px; left:0; right:0; background:rgba(15,15,30,0.97); backdrop-filter:blur(16px); border-bottom:1px solid rgba(255,255,255,0.08); z-index:99; padding:16px 24px 24px; display:flex; flex-direction:column; gap:4px; }
+        .mobile-menu .nav-link { font-size:17px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.06); display:block; }
+        .mobile-menu .gold-btn { margin-top:12px; width:100%; text-align:center; display:block; }
+        .hero-grid { display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center; position:relative; z-index:1; }
+        .hero-inner { padding:80px 24px; }
+        .grid-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:32px; text-align:center; }
+        .grid-how { display:grid; grid-template-columns:repeat(3,1fr); gap:40px; }
+        .grid-features { display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:center; }
+        @media (max-width:768px) {
+          .hamburger { display:flex; }
+          .desktop-nav { display:none; }
+          .hero-grid { grid-template-columns:1fr; gap:40px; }
+          .hero-inner { padding:48px 20px 56px; }
+          .grid-stats { grid-template-columns:repeat(2,1fr); gap:24px; }
+          .grid-how { grid-template-columns:1fr; gap:24px; }
+          .grid-features { grid-template-columns:1fr; gap:40px; }
+        }
+        @media (max-width:480px) {
+          .hero-inner { padding:36px 16px 48px; }
+        }
       `}</style>
 
       {/* ═══ NAVBAR ═══ */}
-      <nav style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-        background: scrollY > 60 ? "rgba(15,15,30,0.95)" : "transparent",
-        backdropFilter: scrollY > 60 ? "blur(16px)" : "none",
-        transition: "background 0.3s, backdrop-filter 0.3s",
-        borderBottom: scrollY > 60 ? "1px solid rgba(255,255,255,0.06)" : "none",
-      }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => setPage("Home")}>
-            <div style={{ width: 40, height: 40, background: GOLD, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: NAVY, fontSize: 16 }}>D</div>
-            <span style={{ color: WHITE, fontSize: 20, fontWeight: 700, letterSpacing: -0.5 }}>DAC <span style={{ color: GOLD }}>HealthPrice</span></span>
+      <nav style={{ position:"fixed", top:0, left:0, right:0, zIndex:100,
+        background: scrollY>60 ? "rgba(15,15,30,0.95)" : "transparent",
+        backdropFilter: scrollY>60 ? "blur(16px)" : "none",
+        transition:"background 0.3s, backdrop-filter 0.3s",
+        borderBottom: scrollY>60 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+        <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between", height:72 }}>
+          {/* Logo */}
+          <div style={{ display:"flex", alignItems:"center", gap:12, cursor:"pointer" }} onClick={() => setPage("Home")}>
+            <div style={{ width:40, height:40, background:GOLD, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, color:NAVY, fontSize:16 }}>D</div>
+            <span style={{ color:WHITE, fontSize:20, fontWeight:700, letterSpacing:-0.5 }}>DAC <span style={{ color:GOLD }}>HealthPrice</span></span>
           </div>
           {/* Desktop nav */}
-          <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-            <div style={{ display: "flex", gap: 28 }}>
-              {PAGES.map(p => (
-                <span key={p} className={`nav-link ${page === p ? "active" : ""}`} onClick={() => { setPage(p); setMenuOpen(false); window.scrollTo(0, 0); }}>{p}</span>
-              ))}
+          <div className="desktop-nav">
+            <div style={{ display:"flex", gap:28 }}>
+              {PAGES.map(p => <span key={p} className={`nav-link ${page===p?"active":""}`} onClick={() => { setPage(p); setMenuOpen(false); window.scrollTo(0,0); }}>{p}</span>)}
             </div>
-            <button className="gold-btn" style={{ padding: "10px 28px", fontSize: 14 }} onClick={() => { setPage("Pricing"); window.scrollTo(0, 0); }}>Get a quote</button>
+            <button className="gold-btn" style={{ padding:"10px 28px", fontSize:14 }} onClick={() => { setPage("Pricing"); window.scrollTo(0,0); }}>Get a quote</button>
           </div>
+          {/* Hamburger */}
+          <button className={`hamburger ${menuOpen?"open":""}`} onClick={() => setMenuOpen(o => !o)} aria-label="Toggle menu">
+            <span /><span /><span />
+          </button>
         </div>
       </nav>
+      {menuOpen && (
+        <div className="mobile-menu">
+          {PAGES.map(p => <span key={p} className={`nav-link ${page===p?"active":""}`} onClick={() => { setPage(p); setMenuOpen(false); window.scrollTo(0,0); }}>{p}</span>)}
+          <button className="gold-btn" onClick={() => { setPage("Pricing"); setMenuOpen(false); window.scrollTo(0,0); }}>Get a quote</button>
+        </div>
+      )}
 
       {page === "Home" && <HomePage onGetQuote={() => { setPage("Pricing"); window.scrollTo(0, 0); }} />}
       {page === "Pricing" && <PricingPage />}
@@ -183,7 +217,7 @@ function HomePage({ onGetQuote }) {
         {/* Gold line accent */}
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }} />
 
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, alignItems: "center", position: "relative", zIndex: 1 }}>
+        <div className="hero-grid hero-inner" style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div>
             <div className="hero-title">
               <span style={{ color: GOLD, fontSize: 14, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 16, display: "block" }}>AI-Powered Insurance Pricing</span>
@@ -248,7 +282,7 @@ function HomePage({ onGetQuote }) {
       <section style={{ background: WHITE, padding: "48px 24px", borderBottom: "1px solid #e5e7eb" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", textAlign: "center" }}>
           <p style={{ color: TXT2, fontSize: 14, marginBottom: 24, textTransform: "uppercase", letterSpacing: 1 }}>Backed by actuarial expertise</p>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 48, flexWrap: "wrap", opacity: 0.5 }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 48, flexWrap: "wrap", opacity: 0.7 }}>
             {["Decent Actuarial Consultants", "RNA Analytics", "R3S Modeler", "Society of Actuaries"].map(t => (
               <span key={t} style={{ fontSize: 16, fontWeight: 700, color: TXT, letterSpacing: -0.5 }}>{t}</span>
             ))}
@@ -258,7 +292,7 @@ function HomePage({ onGetQuote }) {
 
       {/* ═══ STATS ═══ */}
       <section style={{ background: NAVY, padding: "64px 24px" }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 32, textAlign: "center" }}>
+        <div className="grid-stats" style={{ maxWidth: 1000, margin: "0 auto" }}>
           {[
             { val: 17, suf: "M", label: "Population" },
             { val: 40, suf: "+", label: "Insurance companies" },
@@ -285,7 +319,7 @@ function HomePage({ onGetQuote }) {
               <p style={{ color: TXT2, fontSize: 18, marginTop: 12, maxWidth: 560, margin: "12px auto 0" }}>Health insurance pricing doesn't have to be complicated. Our ML models keep things simple.</p>
             </div>
           </FadeIn>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 40 }}>
+          <div className="grid-how">
             {[
               { step: "01", title: "Tell us about you", desc: "Enter your age, health habits, occupation, and region in our guided step-by-step wizard. Takes under 2 minutes.", icon: "👤" },
               { step: "02", title: "AI picks your plan", desc: "Our frequency-severity models calculate your risk profile. The AI recommends your optimal tier — Bronze, Silver, Gold, or Platinum.", icon: "🤖" },
@@ -341,7 +375,7 @@ function HomePage({ onGetQuote }) {
 
       {/* ═══ FEATURES — split layout ═══ */}
       <section style={{ background: WHITE, padding: "96px 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+        <div className="grid-features" style={{ maxWidth: 1200, margin: "0 auto" }}>
           <FadeIn>
             <div style={{ background: NAVY, borderRadius: 24, padding: 40, position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: `rgba(245,197,99,0.08)` }} />

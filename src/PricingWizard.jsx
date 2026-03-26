@@ -99,7 +99,7 @@ function Spinner() {
 // ─── Styles ─────────────────────────────────────────────────────────────────
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=Instrument+Serif:ital@0;1&display=swap');
-:root{--navy:#1a1a2e;--navy-l:#2d2d44;--gold:#f5c563;--gold-d:#b07a0a;--gold-bg:#fef9ec;--gold-bd:#fde68a;--bg:#f7f8fa;--surf:#fff;--surf2:#f1f3f5;--surf3:#e2e5ea;--txt:#111827;--txt2:#4b5563;--txt3:#9ca3af;--ok:#059669;--danger:#ef4444;--fd:'Instrument Serif',serif;--fb:'DM Sans',sans-serif;--r:12px}
+:root{--navy:#1a1a2e;--navy-l:#2d2d44;--gold:#f5c563;--gold-d:#b07a0a;--gold-bg:#fef9ec;--gold-bd:#fde68a;--bg:#f7f8fa;--surf:#fff;--surf2:#f1f3f5;--surf3:#e2e5ea;--txt:#111827;--txt2:#4b5563;--txt3:#6b7280;--ok:#059669;--danger:#ef4444;--fd:'Instrument Serif',serif;--fb:'DM Sans',sans-serif;--r:12px}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--txt);font-family:var(--fb);-webkit-font-smoothing:antialiased}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -194,7 +194,8 @@ input[type="range"]{height:6px;border-radius:3px;outline:none;cursor:pointer}
 .footer{padding:20px;text-align:center;font-size:11px;color:var(--txt3);border-top:1px solid var(--surf3)}
 .footer-tags{display:flex;gap:4px;justify-content:center;margin-top:4px}
 .footer-tag{padding:2px 7px;border-radius:4px;font-size:10px;background:var(--surf2);color:var(--txt3)}
-@media(max-width:640px){.row2,.row3{grid-template-columns:1fr}.tier-grid{grid-template-columns:1fr 1fr}.wizard{padding:20px 14px}}
+@media(max-width:640px){.row2,.row3{grid-template-columns:1fr}.tier-grid{grid-template-columns:1fr 1fr}.wizard{padding:20px 14px}.ai-panel{width:calc(100vw - 32px);right:16px;max-width:360px}.res-amount{font-size:34px}}
+@media(max-width:360px){.tier-grid{grid-template-columns:1fr}}
 `;
 
 // ═══════════════════════════════════════════════════════════════════════════════
