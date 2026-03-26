@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 const API = "https://dac-healthprice-api.onrender.com";
 const LOGO_URL = "/DAC.jpg"; // Your logo in /public
@@ -260,14 +260,15 @@ export default function PricingWizard() {
     return { ...p, preexist_conditions: [...without, cond] };
   });
 
-  const calculate = useCallback(async () => {
+  const calculate = useCallback(async (overrideInp) => {
+    const target = overrideInp || inp;
     setLoading(true); setResult(null); setIsLocal(false);
     let res;
     try {
-      res = await apiCall("/api/v2/price", inp);
+      res = await apiCall("/api/v2/price", target);
       setResult(res);
     } catch {
-      res = localPrice(inp); setResult(res); setIsLocal(true);
+      res = localPrice(target); setResult(res); setIsLocal(true);
     } finally {
       setLoading(false); setStep(3);
       // Save to localStorage for Renewal Advisor
@@ -275,7 +276,7 @@ export default function PricingWizard() {
         try {
           localStorage.setItem("dac_hp_last_quote", JSON.stringify({
             date: new Date().toISOString(),
-            input: inp,
+            input: target,
             premium: res.total_annual_premium,
             monthly: res.total_monthly_premium,
             tier: res.ipd_tier,
@@ -286,6 +287,7 @@ export default function PricingWizard() {
         } catch {}
       }
     }
+    return res;
   }, [inp]);
 
   const peCount = inp.preexist_conditions.filter(p => p !== "None").length;
@@ -955,7 +957,14 @@ export default function PricingWizard() {
         )}
 
         {/* AI CHAT */}
-        <AIChat inp={inp} result={result} />
+        <AIChat
+          inp={inp}
+          result={result}
+          onSwitchTier={tier => u("ipd_tier", tier)}
+          onToggleRider={(rider, on) => u(rider, on)}
+          onCalculateWith={calculate}
+          onGoToStep={setStep}
+        />
 
         <footer className="footer">
           DAC HealthPrice · Cambodia
@@ -974,60 +983,176 @@ export default function PricingWizard() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // AI CHAT COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
-function AIChat({ inp, result }) {
+const TOOLS = [
+  {
+    name: "switch_tier",
+    description: "Change the user's selected IPD tier. Use when the user asks to upgrade, downgrade, or try a different tier.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tier: { type: "string", enum: ["Bronze", "Silver", "Gold", "Platinum"], description: "The tier to switch to." }
+      },
+      required: ["tier"]
+    }
+  },
+  {
+    name: "toggle_rider",
+    description: "Enable or disable an optional coverage rider (OPD, Dental, or Maternity).",
+    input_schema: {
+      type: "object",
+      properties: {
+        rider: { type: "string", enum: ["include_opd", "include_dental", "include_maternity"], description: "Which rider to toggle." },
+        enabled: { type: "boolean", description: "true to add the rider, false to remove it." }
+      },
+      required: ["rider", "enabled"]
+    }
+  },
+  {
+    name: "recalculate_quote",
+    description: "Run the pricing engine with current inputs and navigate to the results step. Always call this after switching tiers or toggling riders so the user sees updated premium figures.",
+    input_schema: { type: "object", properties: {} }
+  },
+  {
+    name: "navigate_to_step",
+    description: "Navigate the wizard to a specific step. Steps: 0=Personal info, 1=Health info, 2=Plan selection, 3=Quote result.",
+    input_schema: {
+      type: "object",
+      properties: {
+        step: { type: "number", enum: [0, 1, 2, 3], description: "Step number to navigate to." }
+      },
+      required: ["step"]
+    }
+  }
+];
+
+const RIDER_NAMES = { include_opd: "OPD", include_dental: "Dental", include_maternity: "Maternity" };
+const STEP_NAMES = ["Personal info", "Health info", "Plan selection", "Quote result"];
+
+function AIChat({ inp, result, onSwitchTier, onToggleRider, onCalculateWith, onGoToStep }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([
-    { role: "bot", text: "Hi! I'm your AI advisor. I can recommend plans, explain pricing, or suggest optimizations." }
+    { role: "bot", text: "Hi! I'm your AI advisor. I can recommend plans, explain pricing, or make changes directly — just ask." }
   ]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const apiMsgs = useRef([]);      // Claude conversation history (separate from display)
+  const pendingChanges = useRef({}); // tracks in-flight state changes during tool loop
 
   const scroll = () => setTimeout(() => {
     const el = document.getElementById("ai-m");
     if (el) el.scrollTop = el.scrollHeight;
   }, 50);
 
-  const ctx = () => {
-    const wm = (inp.exercise_days || 0) * (inp.exercise_mins || 0);
-    const profile = `Profile: age=${inp.age}, gender=${inp.gender}, Cambodia, region=${inp.region}, smoking=${inp.smoking_status}, exercise=${inp.exercise_days}days x ${inp.exercise_mins}min (${wm}min/week, ${inp.exercise_frequency}), occupation=${inp.occupation_type}, conditions=${inp.preexist_conditions.join(",")}, family=${inp.family_size}.`;
-    const plan = `Plan: tier=${inp.ipd_tier}, opd=${inp.include_opd}, dental=${inp.include_dental}, maternity=${inp.include_maternity}.`;
+  const buildCtx = () => {
+    const i = { ...inp, ...pendingChanges.current };
+    const wm = (i.exercise_days || 0) * (i.exercise_mins || 0);
+    const profile = `Profile: age=${i.age}, gender=${i.gender}, Cambodia, region=${i.region}, smoking=${i.smoking_status}, exercise=${i.exercise_days}d x ${i.exercise_mins}min (${wm}min/wk, ${i.exercise_frequency}), occupation=${i.occupation_type}, conditions=${i.preexist_conditions.join(",")}, family=${i.family_size}.`;
+    const plan = `Plan: tier=${i.ipd_tier}, opd=${i.include_opd}, dental=${i.include_dental}, maternity=${i.include_maternity}.`;
     const quote = result
       ? `Quote: $${result.total_annual_premium}/yr, IPD freq=${result.ipd_core?.frequency}, sev=$${result.ipd_core?.severity}, prem=$${result.ipd_core?.annual_premium}. Riders: ${Object.entries(result.riders || {}).map(([k, v]) => `${k}=$${v.annual_premium}`).join(",") || "none"}.`
-      : "No quote yet.";
+      : "No quote calculated yet.";
     return `${profile} ${plan} ${quote}`;
   };
 
+  const executeTool = async (name, toolInput) => {
+    if (name === "switch_tier") {
+      pendingChanges.current.ipd_tier = toolInput.tier;
+      onSwitchTier(toolInput.tier);
+      setMsgs(p => [...p, { role: "action", label: `Switched tier to ${toolInput.tier}` }]);
+      scroll();
+      return `Tier switched to ${toolInput.tier}.`;
+    }
+    if (name === "toggle_rider") {
+      pendingChanges.current[toolInput.rider] = toolInput.enabled;
+      onToggleRider(toolInput.rider, toolInput.enabled);
+      const riderName = RIDER_NAMES[toolInput.rider];
+      setMsgs(p => [...p, { role: "action", label: `${toolInput.enabled ? "Added" : "Removed"} ${riderName} rider` }]);
+      scroll();
+      return `${riderName} rider ${toolInput.enabled ? "enabled" : "disabled"}.`;
+    }
+    if (name === "recalculate_quote") {
+      const merged = { ...inp, ...pendingChanges.current };
+      setMsgs(p => [...p, { role: "action", label: "Recalculating quote…" }]);
+      scroll();
+      const res = await onCalculateWith(merged);
+      if (res) {
+        setMsgs(p => { const next = [...p]; next[next.length - 1] = { role: "action", label: `Quote updated — $${res.total_annual_premium}/yr` }; return next; });
+        pendingChanges.current = {};
+        const riderSummary = Object.keys(res.riders || {}).length
+          ? `Riders included: ${Object.keys(res.riders).map(k => RIDER_NAMES[`include_${k}`] || k).join(", ")}.`
+          : "No riders.";
+        return `New quote: $${res.total_annual_premium}/yr ($${res.total_monthly_premium}/mo) with ${merged.ipd_tier} tier. ${riderSummary}`;
+      }
+      return "Recalculation complete.";
+    }
+    if (name === "navigate_to_step") {
+      onGoToStep(toolInput.step);
+      setMsgs(p => [...p, { role: "action", label: `Navigated to ${STEP_NAMES[toolInput.step]}` }]);
+      scroll();
+      return `Navigated to step ${toolInput.step} (${STEP_NAMES[toolInput.step]}).`;
+    }
+    return "Unknown tool.";
+  };
+
   const send = async (text) => {
-    if (!text.trim()) return;
-    setMsgs(p => [...p, { role: "user", text: text.trim() }]);
+    if (!text.trim() || thinking) return;
+    const userText = text.trim();
+    setMsgs(p => [...p, { role: "user", text: userText }]);
     setInput("");
     setThinking(true);
     scroll();
 
-    try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 800,
-          system: `You are an insurance advisor for DAC HealthPrice. 3 roles: (1) recommend tier/riders (2) explain premium factors (3) suggest optimizations. 2-3 sentences max. Use **bold** for amounts. Context:\n${ctx()}`,
-          messages: msgs
-            .filter((_, i) => i > 0)
-            .slice(-6)
-            .map(m => ({ role: m.role === "bot" ? "assistant" : "user", content: m.text }))
-            .concat([{ role: "user", content: text.trim() }]),
-        }),
-      });
+    apiMsgs.current = [...apiMsgs.current, { role: "user", content: userText }];
 
-      const d = await r.json();
-      const reply = (d.content?.[0]?.text || "Sorry, try again.").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-      setMsgs(p => [...p, { role: "bot", text: reply }]);
+    const systemPrompt = `You are an insurance advisor for DAC HealthPrice Cambodia. You have three roles: (1) recommend tiers and riders, (2) explain premium factors, (3) suggest optimizations. You also have tools to act directly on the user's plan — switch tiers, add/remove riders, recalculate quotes, and navigate the wizard. Use tools when the user asks for changes, not just advice. Always call recalculate_quote after making plan changes so the user sees updated prices. Be concise: 2-3 sentences max. Use **bold** for amounts. Current state:\n${buildCtx()}`;
+
+    try {
+      let iterations = 0;
+      while (iterations < 5) {
+        iterations++;
+        const r = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": import.meta.env.VITE_ANTHROPIC_KEY,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 800,
+            system: systemPrompt,
+            tools: TOOLS,
+            messages: apiMsgs.current.slice(-12),
+          }),
+        });
+
+        const d = await r.json();
+        apiMsgs.current = [...apiMsgs.current, { role: "assistant", content: d.content }];
+
+        if (d.stop_reason === "end_turn") {
+          const textBlock = d.content.find(b => b.type === "text");
+          if (textBlock) {
+            const reply = textBlock.text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+            setMsgs(p => [...p, { role: "bot", text: reply }]);
+          }
+          break;
+        }
+
+        if (d.stop_reason === "tool_use") {
+          const toolResults = [];
+          for (const block of d.content) {
+            if (block.type === "tool_use") {
+              const toolResult = await executeTool(block.name, block.input);
+              toolResults.push({ type: "tool_result", tool_use_id: block.id, content: toolResult });
+            }
+          }
+          apiMsgs.current = [...apiMsgs.current, { role: "user", content: toolResults }];
+          scroll();
+        } else {
+          break;
+        }
+      }
     } catch {
       setMsgs(p => [...p, { role: "bot", text: "Connection issue. Try again." }]);
     } finally {
@@ -1037,8 +1162,8 @@ function AIChat({ inp, result }) {
   };
 
   const qs = result
-    ? ["Why this amount?", "Lower premium?", "Add dental?", "Right tier?"]
-    : ["Best tier?", "Need OPD?", "Explain tiers", "Pre-existing help"];
+    ? ["Why this amount?", "Switch to Gold", "Add OPD", "Lower my premium"]
+    : ["Best tier for me?", "Explain tiers", "Do I need OPD?", "Pre-existing conditions help"];
 
   return (
     <>
@@ -1056,17 +1181,23 @@ function AIChat({ inp, result }) {
               <div style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--navy)", color: "var(--gold)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700 }}>AI</div>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600 }}>Insurance advisor</div>
-                <div style={{ fontSize: 10, color: "var(--txt3)" }}>Plan · Risk · Savings</div>
+                <div style={{ fontSize: 10, color: "var(--txt3)" }}>Plan · Risk · Savings · Actions</div>
               </div>
             </div>
             <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--txt3)", fontSize: 16 }} onClick={() => setOpen(false)}>×</button>
           </div>
 
           <div className="ai-msgs" id="ai-m">
-            {msgs.map((m, i) => (
-              <div key={i} className={`ai-msg ${m.role === "user" ? "user" : "bot"}`} dangerouslySetInnerHTML={{ __html: m.text }} />
-            ))}
-            {thinking && <div className="ai-msg typing">Thinking...</div>}
+            {msgs.map((m, i) => {
+              if (m.role === "action") return (
+                <div key={i} style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 7, background: "var(--gold-bg)", border: "1px solid var(--gold-bd)", fontSize: 11, color: "var(--gold-d)", fontWeight: 600, maxWidth: "86%" }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                  {m.label}
+                </div>
+              );
+              return <div key={i} className={`ai-msg ${m.role === "user" ? "user" : "bot"}`} dangerouslySetInnerHTML={{ __html: m.text }} />;
+            })}
+            {thinking && <div className="ai-msg typing">Thinking…</div>}
             {!thinking && msgs.length <= 2 && (
               <div className="ai-qchips">
                 {qs.map((q, i) => (
@@ -1079,7 +1210,7 @@ function AIChat({ inp, result }) {
           <div className="ai-input-row">
             <input
               className="ai-input"
-              placeholder="Ask about your plan..."
+              placeholder="Ask or say 'Switch to Gold'…"
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !thinking) send(input); }}
