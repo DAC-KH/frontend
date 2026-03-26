@@ -151,8 +151,8 @@ export default function App() {
             </div>
             <div>
               <h4 style={{ color: WHITE, fontSize: 14, fontWeight: 600, marginBottom: 16, textTransform: "uppercase", letterSpacing: 1 }}>Contact</h4>
-              <p style={{ fontSize: 14, marginBottom: 10 }}>brook@dac.com.tw</p>
-              <p style={{ fontSize: 14, marginBottom: 10 }}>+855 XX XXX XXXX</p>
+              <p style={{ fontSize: 14, marginBottom: 10 }}>radet@dactuaries.com</p>
+              <p style={{ fontSize: 14, marginBottom: 10 }}>+855 85 508 860</p>
               <p style={{ fontSize: 14 }}>Phnom Penh, Cambodia</p>
             </div>
           </div>
@@ -502,7 +502,7 @@ function ContactPage() {
         <FadeIn delay={0.2}>
           <div style={{ marginTop: 40, padding: 24, background: LTGRAY, borderRadius: 12 }}>
             <p style={{ fontWeight: 600, marginBottom: 8 }}>DAC Phnom Penh Office</p>
-            <p style={{ color: TXT2, fontSize: 14, lineHeight: 1.8 }}>Email: brook@dac.com.tw<br />Phone: +855 XX XXX XXXX<br />Phnom Penh, Cambodia</p>
+            <p style={{ color: TXT2, fontSize: 14, lineHeight: 1.8 }}>Email: radet@dactuaries.com<br />Phone: +855 85 508 860 <br />Phnom Penh, Cambodia</p>
           </div>
         </FadeIn>
       </div>
@@ -522,16 +522,16 @@ function AdminPage() {
   const [file, setFile] = useState(null);
   const [covType, setCovType] = useState("ipd");
   const [autoRetrain, setAutoRetrain] = useState(false);
-
+ 
   const API = "https://dac-healthprice-api.onrender.com";
-
+ 
   const checkHealth = async () => {
     try {
       const r = await fetch(`${API}/health`);
       setStatus(await r.json());
     } catch { setStatus({ error: "Cannot reach API" }); }
   };
-
+ 
   const handleUpload = async () => {
     if (!file || !key) return;
     setUploading(true); setUploadResult(null);
@@ -547,7 +547,7 @@ function AdminPage() {
     } catch (e) { setUploadResult({ status: "error", detail: e.message }); }
     setUploading(false);
   };
-
+ 
   if (!authed) {
     return (
       <section style={{ paddingTop: 120, paddingBottom: 80, minHeight: "80vh" }}>
@@ -566,7 +566,7 @@ function AdminPage() {
       </section>
     );
   }
-
+ 
   return (
     <section style={{ paddingTop: 100, paddingBottom: 80 }}>
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 24px" }}>
@@ -574,7 +574,7 @@ function AdminPage() {
           <span style={{ color: GOLD_D, fontSize: 14, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase" }}>Admin dashboard</span>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 700, marginTop: 12, marginBottom: 32 }}>System management</h2>
         </FadeIn>
-
+ 
         <FadeIn delay={0.1}>
           <div style={{ background: WHITE, borderRadius: 16, padding: 28, border: "1px solid #e5e7eb", marginBottom: 24 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -600,7 +600,7 @@ function AdminPage() {
             )}
           </div>
         </FadeIn>
-
+ 
         <FadeIn delay={0.2}>
           <div style={{ background: WHITE, borderRadius: 16, padding: 28, border: "1px solid #e5e7eb" }}>
             <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Upload claims dataset</h3>
@@ -633,7 +633,155 @@ function AdminPage() {
             )}
           </div>
         </FadeIn>
+ 
+        {/* User behavior analytics */}
+        <FadeIn delay={0.3}>
+          <div style={{ background: WHITE, borderRadius: 16, padding: 28, border: "1px solid #e5e7eb", marginTop: 24 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>User quote data</h3>
+            <AdminUserData apiKey={key} apiUrl={API} />
+          </div>
+        </FadeIn>
       </div>
     </section>
+  );
+}
+ 
+function AdminUserData({ apiKey, apiUrl }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showTable, setShowTable] = useState(false);
+ 
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${apiUrl}/api/v2/admin/user-behavior`, { headers: { "X-API-Key": apiKey } });
+      setData(await r.json());
+    } catch { setData({ status: "error" }); }
+    finally { setLoading(false); }
+  };
+ 
+  useEffect(() => { load(); }, []);
+ 
+  if (!data) return <p style={{ fontSize: 13, color: TXT2, textAlign: "center", padding: 16 }}>{loading ? "Loading..." : "No data"}</p>;
+  if (data.status === "no_db") return <p style={{ fontSize: 13, color: TXT2, textAlign: "center", padding: 16 }}>Database not connected</p>;
+  if (data.status === "error") return <p style={{ fontSize: 13, color: "#ef4444", textAlign: "center", padding: 16 }}>Failed to load user data</p>;
+ 
+  const { summary = {}, records = [] } = data;
+ 
+  if (records.length === 0) return (
+    <div style={{ textAlign: "center", padding: 20 }}>
+      <p style={{ fontSize: 13, color: TXT2 }}>No user quotes recorded yet</p>
+      <p style={{ fontSize: 12, color: TXT2, marginTop: 4 }}>Quotes will appear here as users calculate premiums</p>
+    </div>
+  );
+ 
+  const tierColors = { Bronze: "#92400e", Silver: "#475569", Gold: "#b07a0a", Platinum: "#1e40af" };
+  const tierBg = { Bronze: "#fffbeb", Silver: "#f1f3f5", Gold: "#fef9ec", Platinum: "#eff6ff" };
+ 
+  return (
+    <div>
+      {/* Summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+        {[
+          { label: "Total quotes", value: summary.total_quotes || 0 },
+          { label: "Avg age", value: summary.avg_age || "—" },
+          { label: "OPD rider %", value: `${summary.rider_rates?.opd || 0}%` },
+          { label: "Dental rider %", value: `${summary.rider_rates?.dental || 0}%` },
+        ].map((s, i) => (
+          <div key={i} style={{ background: LTGRAY, borderRadius: 10, padding: 14, textAlign: "center" }}>
+            <p style={{ fontSize: 11, color: TXT2, marginBottom: 4 }}>{s.label}</p>
+            <p style={{ fontSize: 22, fontWeight: 600, color: TXT }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+ 
+      {/* Tier distribution */}
+      {summary.tier_distribution && Object.keys(summary.tier_distribution).length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 12, color: TXT2, marginBottom: 8, fontWeight: 600 }}>Tier distribution</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            {Object.entries(summary.tier_distribution).map(([tier, count]) => {
+              const pct = Math.round(count / (summary.total_quotes || 1) * 100);
+              return (
+                <div key={tier} style={{ flex: 1, background: tierBg[tier] || LTGRAY, borderRadius: 10, padding: "12px 8px", textAlign: "center" }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: tierColors[tier] || TXT }}>{tier}</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: tierColors[tier] || TXT }}>{pct}%</p>
+                  <p style={{ fontSize: 10, color: TXT2 }}>{count} quotes</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+ 
+      {/* Smoking distribution */}
+      {summary.smoking_distribution && Object.keys(summary.smoking_distribution).length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 12, color: TXT2, marginBottom: 8, fontWeight: 600 }}>Smoking status</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            {Object.entries(summary.smoking_distribution).map(([s, count]) => {
+              const pct = Math.round(count / (summary.total_quotes || 1) * 100);
+              const colors = { Never: "#059669", Former: "#b07a0a", Current: "#dc2626" };
+              const bgs = { Never: "#e1f5ee", Former: "#fffbeb", Current: "#fef2f2" };
+              return (
+                <div key={s} style={{ flex: 1, background: bgs[s] || LTGRAY, borderRadius: 10, padding: "12px 8px", textAlign: "center" }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: colors[s] || TXT }}>{s}</p>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: colors[s] || TXT }}>{pct}%</p>
+                  <p style={{ fontSize: 10, color: TXT2 }}>{count} users</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+ 
+      {/* Toggle table */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <button onClick={() => setShowTable(!showTable)} className="gold-btn" style={{ padding: "8px 16px", fontSize: 12, background: showTable ? NAVY : GOLD, color: showTable ? WHITE : NAVY }}>
+          {showTable ? "Hide" : "Show"} recent quotes ({records.length})
+        </button>
+        <button onClick={load} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: WHITE, fontSize: 12, cursor: "pointer", fontFamily: "inherit", color: TXT2 }}>
+          Refresh
+        </button>
+      </div>
+ 
+      {/* Records table */}
+      {showTable && (
+        <div style={{ overflowX: "auto", marginTop: 8 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
+                {["Time", "Age", "Gender", "Region", "Smoking", "Occupation", "Conditions", "Tier", "Riders", "Family"].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "8px 6px", fontSize: 11, color: TXT2, fontWeight: 600 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {records.slice(0, 30).map((r, i) => {
+                const riders = [r.include_opd && "OPD", r.include_dental && "Den", r.include_maternity && "Mat"].filter(Boolean).join(", ") || "—";
+                return (
+                  <tr key={i} style={{ borderBottom: "1px solid #f1f3f5" }}>
+                    <td style={{ padding: "8px 6px", color: TXT2, fontSize: 11 }}>{r.created_at ? new Date(r.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                    <td style={{ padding: "8px 6px" }}>{r.age}</td>
+                    <td style={{ padding: "8px 6px" }}>{r.gender}</td>
+                    <td style={{ padding: "8px 6px", fontSize: 11 }}>{r.region}</td>
+                    <td style={{ padding: "8px 6px" }}>
+                      <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, background: r.smoking === "Current" ? "#fef2f2" : r.smoking === "Former" ? "#fffbeb" : "#e1f5ee", color: r.smoking === "Current" ? "#dc2626" : r.smoking === "Former" ? "#b07a0a" : "#059669" }}>{r.smoking}</span>
+                    </td>
+                    <td style={{ padding: "8px 6px", fontSize: 11 }}>{r.occupation}</td>
+                    <td style={{ padding: "8px 6px" }}>{r.preexist_count || 0}</td>
+                    <td style={{ padding: "8px 6px" }}>
+                      <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, background: tierBg[r.ipd_tier] || LTGRAY, color: tierColors[r.ipd_tier] || TXT, fontWeight: 600 }}>{r.ipd_tier}</span>
+                    </td>
+                    <td style={{ padding: "8px 6px", fontSize: 11 }}>{riders}</td>
+                    <td style={{ padding: "8px 6px" }}>{r.family_size}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
