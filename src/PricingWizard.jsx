@@ -81,7 +81,7 @@ function localPrice(inp) {
 // ─── Small components ───────────────────────────────────────────────────────
 function Logo({ size = 34 }) {
   if (LOGO_URL) return <img src={LOGO_URL} alt="DAC" style={{ width: size, height: size, borderRadius: size * 0.22, objectFit: "contain" }} />;
-  return <div style={{ width: size, height: size, borderRadius: size * 0.22, background: "#1a1a2e", display: "flex", alignItems: "center", justifyContent: "center", color: "#f5c563", fontWeight: 600, fontSize: size * 0.35 }}>DAC</div>;
+  return <div style={{ width: size, height: size, borderRadius: size * 0.22, background: "#0d2b7a", display: "flex", alignItems: "center", justifyContent: "center", color: "#f5a623", fontWeight: 600, fontSize: size * 0.35 }}>DAC</div>;
 }
 
 function Chev() {
@@ -99,7 +99,7 @@ function Spinner() {
 // ─── Styles ─────────────────────────────────────────────────────────────────
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=Instrument+Serif:ital@0;1&display=swap');
-:root{--navy:#1a1a2e;--navy-l:#2d2d44;--gold:#f5c563;--gold-d:#b07a0a;--gold-bg:#fef9ec;--gold-bd:#fde68a;--bg:#f7f8fa;--surf:#fff;--surf2:#f1f3f5;--surf3:#e2e5ea;--txt:#111827;--txt2:#4b5563;--txt3:#6b7280;--ok:#059669;--danger:#ef4444;--fd:'Instrument Serif',serif;--fb:'DM Sans',sans-serif;--r:12px}
+:root{--navy:#0d2b7a;--navy-l:#1a4fba;--gold:#f5a623;--gold-d:#c46800;--gold-bg:#fff7ed;--gold-bd:#fed7aa;--bg:#f7f8fa;--surf:#fff;--surf2:#f1f3f5;--surf3:#e2e5ea;--txt:#111827;--txt2:#4b5563;--txt3:#6b7280;--ok:#059669;--danger:#ef4444;--fd:'Instrument Serif',serif;--fb:'DM Sans',sans-serif;--r:12px}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--txt);font-family:var(--fb);-webkit-font-smoothing:antialiased}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -678,7 +678,7 @@ export default function PricingWizard() {
                     <span style={{
                       padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
                       background: inp.exercise_frequency === "Sedentary" ? "#fef2f2" : inp.exercise_frequency === "Light" ? "#fffbeb" : inp.exercise_frequency === "Moderate" ? "#eff6ff" : "#e1f5ee",
-                      color: inp.exercise_frequency === "Sedentary" ? "#dc2626" : inp.exercise_frequency === "Light" ? "#b07a0a" : inp.exercise_frequency === "Moderate" ? "#1e40af" : "#059669",
+                      color: inp.exercise_frequency === "Sedentary" ? "#dc2626" : inp.exercise_frequency === "Light" ? "#c46800" : inp.exercise_frequency === "Moderate" ? "#1e40af" : "#059669",
                     }}>{inp.exercise_frequency} — {(inp.exercise_days || 0) * (inp.exercise_mins || 0)} min/week</span>
                   </div>
                   <div className="row2">
@@ -798,10 +798,6 @@ export default function PricingWizard() {
                 {/* IPD Core */}
                 <div className="bk-section">
                   <div className="bk-head"><span className="bk-badge core">IPD</span> Hospital reimbursement</div>
-                  <div className="bk-row"><span className="bk-l">Frequency</span><span className="bk-v">{result.ipd_core?.frequency}/yr</span></div>
-                  <div className="bk-row"><span className="bk-l">Severity</span><span className="bk-v">${result.ipd_core?.severity?.toLocaleString()}</span></div>
-                  <div className="bk-row"><span className="bk-l">Expected cost</span><span className="bk-v">${result.ipd_core?.expected_annual_cost?.toLocaleString()}</span></div>
-                  <div className="bk-row"><span className="bk-l">Tier factor ({result.ipd_tier})</span><span className="bk-v hi">{result.ipd_core?.tier_factor}x</span></div>
                   {result.ipd_core?.deductible_credit > 0 && <div className="bk-row"><span className="bk-l">Deductible credit</span><span className="bk-v" style={{ color: "var(--ok)" }}>-${result.ipd_core.deductible_credit}</span></div>}
                   <div className="bk-row" style={{ fontWeight: 600 }}><span className="bk-l" style={{ fontWeight: 600 }}>IPD premium</span><span className="bk-v hi">${result.ipd_core?.annual_premium?.toLocaleString()}/yr</span></div>
                 </div>
@@ -810,7 +806,6 @@ export default function PricingWizard() {
                 {Object.entries(result.riders || {}).map(([k, v]) => (
                   <div className="bk-section" key={k} style={{ paddingTop: 12, borderTop: "1px solid var(--surf3)" }}>
                     <div className="bk-head"><span className="bk-badge rider">{k.toUpperCase()}</span> {v.name}</div>
-                    <div className="bk-row"><span className="bk-l">Freq / Sev</span><span className="bk-v">{v.frequency}/yr · ${v.severity?.toLocaleString()}</span></div>
                     <div className="bk-row" style={{ fontWeight: 600 }}><span className="bk-l" style={{ fontWeight: 600 }}>Rider premium</span><span className="bk-v gold">${v.annual_premium?.toLocaleString()}/yr</span></div>
                   </div>
                 ))}
@@ -1331,8 +1326,8 @@ function AdminUserData({ adminKey }) {
     </div>
   );
 
-  const tierColors = { Bronze: "#92400e", Silver: "#475569", Gold: "#b07a0a", Platinum: "#1e40af" };
-  const tierBg = { Bronze: "#fffbeb", Silver: "#f1f3f5", Gold: "#fef9ec", Platinum: "#eff6ff" };
+  const tierColors = { Bronze: "#92400e", Silver: "#475569", Gold: "#c46800", Platinum: "#1e40af" };
+  const tierBg = { Bronze: "#fffbeb", Silver: "#f1f3f5", Gold: "#fff7ed", Platinum: "#eff6ff" };
 
   return (
     <div>
@@ -1382,7 +1377,7 @@ function AdminUserData({ adminKey }) {
           <div style={{ display: "flex", gap: 6 }}>
             {Object.entries(summary.smoking_distribution).map(([status, count]) => {
               const pct = Math.round(count / (summary.total_quotes || 1) * 100);
-              const colors = { Never: "#059669", Former: "#b07a0a", Current: "#dc2626" };
+              const colors = { Never: "#059669", Former: "#c46800", Current: "#dc2626" };
               const bgs = { Never: "#e1f5ee", Former: "#fffbeb", Current: "#fef2f2" };
               return (
                 <div key={status} style={{ flex: 1, background: bgs[status] || "var(--surf2)", borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
@@ -1430,7 +1425,7 @@ function AdminUserData({ adminKey }) {
                     <td style={{ padding: "6px" }}>{r.gender}</td>
                     <td style={{ padding: "6px", fontSize: 10 }}>{r.region}</td>
                     <td style={{ padding: "6px" }}>
-                      <span style={{ padding: "1px 6px", borderRadius: 3, fontSize: 10, background: r.smoking === "Current" ? "#fef2f2" : r.smoking === "Former" ? "#fffbeb" : "#e1f5ee", color: r.smoking === "Current" ? "#dc2626" : r.smoking === "Former" ? "#b07a0a" : "#059669" }}>{r.smoking}</span>
+                      <span style={{ padding: "1px 6px", borderRadius: 3, fontSize: 10, background: r.smoking === "Current" ? "#fef2f2" : r.smoking === "Former" ? "#fffbeb" : "#e1f5ee", color: r.smoking === "Current" ? "#dc2626" : r.smoking === "Former" ? "#c46800" : "#059669" }}>{r.smoking}</span>
                     </td>
                     <td style={{ padding: "6px", fontSize: 10 }}>{r.occupation}</td>
                     <td style={{ padding: "6px" }}>{r.preexist_count || 0}</td>

@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import PricingWizard from "./PricingWizard";
 
 
-const NAVY = "#1a1a2e";
-const NAVY_D = "#0f0f1e";
-const NAVY_L = "#2d2d44";
-const GOLD = "#f5c563";
-const GOLD_D = "#d4a843";
+const NAVY = "#0d2b7a";
+const NAVY_D = "#091d5e";
+const NAVY_L = "#1a4fba";
+const GOLD = "#f5a623";
+const GOLD_D = "#e67e00";
 const WHITE = "#ffffff";
 const GRAY = "#94a3b8";
 const LTGRAY = "#f1f3f5";
@@ -130,7 +130,7 @@ export default function App() {
         <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between", height:72 }}>
           {/* Logo */}
           <div style={{ display:"flex", alignItems:"center", gap:12, cursor:"pointer" }} onClick={() => setPage("Home")}>
-            <div style={{ width:40, height:40, background:GOLD, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, color:NAVY, fontSize:16 }}>D</div>
+            <img src="/DAC.jpg" alt="DAC" style={{ width:40, height:40, borderRadius:10, objectFit:"contain" }} />
             <span style={{ color:WHITE, fontSize:20, fontWeight:700, letterSpacing:-0.5 }}>DAC <span style={{ color:GOLD }}>HealthPrice</span></span>
           </div>
           {/* Desktop nav */}
@@ -709,8 +709,8 @@ function AdminUserData({ apiKey, apiUrl }) {
     </div>
   );
  
-  const tierColors = { Bronze: "#92400e", Silver: "#475569", Gold: "#b07a0a", Platinum: "#1e40af" };
-  const tierBg = { Bronze: "#fffbeb", Silver: "#f1f3f5", Gold: "#fef9ec", Platinum: "#eff6ff" };
+  const tierColors = { Bronze: "#92400e", Silver: "#475569", Gold: "#c46800", Platinum: "#1e40af" };
+  const tierBg = { Bronze: "#fffbeb", Silver: "#f1f3f5", Gold: "#fff7ed", Platinum: "#eff6ff" };
  
   return (
     <div>
@@ -755,7 +755,7 @@ function AdminUserData({ apiKey, apiUrl }) {
           <div style={{ display: "flex", gap: 8 }}>
             {Object.entries(summary.smoking_distribution).map(([s, count]) => {
               const pct = Math.round(count / (summary.total_quotes || 1) * 100);
-              const colors = { Never: "#059669", Former: "#b07a0a", Current: "#dc2626" };
+              const colors = { Never: "#059669", Former: "#c46800", Current: "#dc2626" };
               const bgs = { Never: "#e1f5ee", Former: "#fffbeb", Current: "#fef2f2" };
               return (
                 <div key={s} style={{ flex: 1, background: bgs[s] || LTGRAY, borderRadius: 10, padding: "12px 8px", textAlign: "center" }}>
@@ -800,7 +800,7 @@ function AdminUserData({ apiKey, apiUrl }) {
                     <td style={{ padding: "8px 6px" }}>{r.gender}</td>
                     <td style={{ padding: "8px 6px", fontSize: 11 }}>{r.region}</td>
                     <td style={{ padding: "8px 6px" }}>
-                      <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, background: r.smoking === "Current" ? "#fef2f2" : r.smoking === "Former" ? "#fffbeb" : "#e1f5ee", color: r.smoking === "Current" ? "#dc2626" : r.smoking === "Former" ? "#b07a0a" : "#059669" }}>{r.smoking}</span>
+                      <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, background: r.smoking === "Current" ? "#fef2f2" : r.smoking === "Former" ? "#fffbeb" : "#e1f5ee", color: r.smoking === "Current" ? "#dc2626" : r.smoking === "Former" ? "#c46800" : "#059669" }}>{r.smoking}</span>
                     </td>
                     <td style={{ padding: "8px 6px", fontSize: 11 }}>{r.occupation}</td>
                     <td style={{ padding: "8px 6px" }}>{r.preexist_count || 0}</td>
