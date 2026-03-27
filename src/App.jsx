@@ -130,7 +130,7 @@ export default function App() {
         <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between", height:72 }}>
           {/* Logo */}
           <div style={{ display:"flex", alignItems:"center", gap:12, cursor:"pointer" }} onClick={() => setPage("Home")}>
-            <img src="/DAC.jpg" alt="DAC" style={{ width:60, height:60, borderRadius:10, objectFit:"contain" }} />
+            <img src="/DAC.jpg" alt="DAC" style={{ width:72, height:72, borderRadius:10, objectFit:"contain", mixBlendMode:"multiply" }} />
             <span style={{ color:WHITE, fontSize:20, fontWeight:700, letterSpacing:-0.5 }}>DAC <span style={{ color:GOLD }}>HealthPrice</span></span>
           </div>
           {/* Desktop nav */}

@@ -101,7 +101,7 @@ function localPrice(inp) {
 
 // ─── Small components ───────────────────────────────────────────────────────
 function Logo({ size = 48 }) {
-  if (LOGO_URL) return <img src={LOGO_URL} alt="DAC" style={{ width: size, height: size, borderRadius: size * 0.22, objectFit: "contain" }} />;
+  if (LOGO_URL) return <img src={LOGO_URL} alt="DAC" style={{ width: size, height: size, borderRadius: size * 0.22, objectFit: "contain", mixBlendMode: "multiply" }} />;
   return <div style={{ width: size, height: size, borderRadius: size * 0.22, background: "#0d2b7a", display: "flex", alignItems: "center", justifyContent: "center", color: "#f5a623", fontWeight: 600, fontSize: size * 0.35 }}>DAC</div>;
 }
 
