@@ -785,7 +785,7 @@ function AdminUserData({ apiKey, apiUrl }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-                {["Time", "Age", "Gender", "Region", "Smoking", "Occupation", "Conditions", "Tier", "Riders", "Family"].map(h => (
+                {["User", "Time", "Age", "Gender", "Region", "Smoking", "Occupation", "Conditions", "Tier", "Riders", "Family"].map(h => (
                   <th key={h} style={{ textAlign: "left", padding: "8px 6px", fontSize: 11, color: TXT2, fontWeight: 600 }}>{h}</th>
                 ))}
               </tr>
@@ -795,6 +795,7 @@ function AdminUserData({ apiKey, apiUrl }) {
                 const riders = [r.include_opd && "OPD", r.include_dental && "Den", r.include_maternity && "Mat"].filter(Boolean).join(", ") || "—";
                 return (
                   <tr key={i} style={{ borderBottom: "1px solid #f1f3f5" }}>
+                    <td style={{ padding: "8px 6px", fontFamily: "monospace", fontSize: 11, color: TXT2 }} title={r.browser_id || "—"}>{r.browser_id ? r.browser_id.slice(0, 8) : "—"}</td>
                     <td style={{ padding: "8px 6px", color: TXT2, fontSize: 11 }}>{r.created_at ? new Date(r.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</td>
                     <td style={{ padding: "8px 6px" }}>{r.age}</td>
                     <td style={{ padding: "8px 6px" }}>{r.gender}</td>

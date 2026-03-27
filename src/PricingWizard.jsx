@@ -3,6 +3,15 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 const API = "https://dac-healthprice-api.onrender.com";
 const LOGO_URL = "/DAC.png"; // Your logo in /public
 
+function getBrowserId() {
+  let id = localStorage.getItem("dac_browser_id");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("dac_browser_id", id);
+  }
+  return id;
+}
+
 async function apiCall(path, body) {
   const opts = body
     ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
@@ -289,7 +298,7 @@ export default function PricingWizard() {
     setLoading(true); setResult(null); setIsLocal(false);
     let res;
     try {
-      res = await apiCall("/api/v2/price", target);
+      res = await apiCall("/api/v2/price", { ...target, browser_id: getBrowserId() });
       setResult(res);
     } catch {
       res = localPrice(target); setResult(res); setIsLocal(true);
